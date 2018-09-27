@@ -21,6 +21,7 @@ class FetchPostsCommand extends ContainerAwareCommand
             ->setDescription('拉兔区帖子数据')
             ->addArgument('keyword', InputArgument::OPTIONAL, '关键词')
             ->addArgument('page', InputArgument::OPTIONAL, '开始页')
+            ->addArgument('max_limit', InputArgument::OPTIONAL, '页数限制')
         ;
     }
 
@@ -29,6 +30,7 @@ class FetchPostsCommand extends ContainerAwareCommand
         $this->io = new SymfonyStyle($input, $output);
         $keyword = $input->getArgument('keyword');
         $page = $input->getArgument('page');
+        $maxLimit = $input->getArgument('max_limit');
 
         if ($keyword) {
             $this->io->note(sprintf('搜索关键字: %s', $keyword));
@@ -40,12 +42,16 @@ class FetchPostsCommand extends ContainerAwareCommand
             $currentPage = (int) $page;
         }
         $resData = $this->fetchPage($keyword, $currentPage);
-        $maxPage = 0;
+        $count = 0;
 
         if (isset($resData['data'])) {
             $maxPage = $resData['pages'];
             $this->saveToDb($resData['data']);
             while ($currentPage < $maxPage) {
+                $count++;
+                if ($maxLimit && $count > $maxLimit) {
+                    break;
+                }
                 $currentPage++;
                 $this->io->note('开始导入第'.$currentPage.'页数据');
                 $resData = $this->fetchPage($keyword, $currentPage);

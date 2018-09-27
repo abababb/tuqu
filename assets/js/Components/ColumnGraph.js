@@ -6,7 +6,7 @@ import Chart from 'chart.js'
 ReactChartkick.addAdapter(Chart)
 
 const ColumnGraph = ({data}) => (
-  <ColumnChart data={[["Sun", 32], ["Mon", 46], ["Tue", 28]]} />
+  <ColumnChart data={data} />
 );
 
 export default ColumnGraph;

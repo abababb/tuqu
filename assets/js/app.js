@@ -1,8 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import TextField from '@material-ui/core/TextField';
-import InputAdornment from '@material-ui/core/InputAdornment';
-import Search from '@material-ui/icons/Search';
+import ChipInput from 'material-ui-chip-input'
 
 import ColumnGraph from './Components/ColumnGraph';
 
@@ -11,16 +9,25 @@ class App extends React.Component {
     super();
 
     this.state = {
-      entries: []
+      graphData: []
     };
   }
 
   componentDidMount() {
-    fetch('/column/graph/api')
+  }
+
+  handleChange(keywords) {
+    let data = new FormData()
+    data.append('keywords', JSON.stringify(keywords)); 
+    fetch('/column/graph/api', {
+        method: "POST",
+        body: data,
+      })
       .then(response => response.json())
-      .then(entries => {
+      .then(data => {
+        console.log(data)
         this.setState({
-          entries
+          graphData: data
         });
       });
   }
@@ -28,19 +35,15 @@ class App extends React.Component {
   render() {
     return (
       <div>
-       <TextField
-          className='search-box'
-          id="input-with-icon-textfield"
+        <ChipInput
+          defaultValue={[]}
           placeholder="搜索"
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="end">
-                <Search />
-              </InputAdornment>
-            ),
-          }}
+          fullWidth={true}
+          onChange={(chips) => this.handleChange(chips)}
         />
-        {/*<ColumnGraph></ColumnGraph>*/}
+        <div>
+          <ColumnGraph data={this.state.graphData}></ColumnGraph>
+        </div>
       </div>
     );
   }

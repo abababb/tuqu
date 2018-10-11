@@ -9,6 +9,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use GuzzleHttp\Cookie\CookieJar;
 
 class ReadPostCommand extends Command
 {
@@ -43,7 +44,14 @@ class ReadPostCommand extends Command
         $client = new \GuzzleHttp\Client();
         $page--;
         $url = 'http://bbs.jjwxc.net/showmsg.php?board=2&page='.$page.'&id='.$postid;
-        $res = $client->request('GET', $url);
+        $cookieJar = CookieJar::fromArray([
+            'bbstoken' => 'MjA5OTQ3OTFfMF84YWQxZmI1ZGM3ZDk0NTIwZmUxNTMyNjIzNjc2Y2M0ZV8xX18%3D',
+            'bbsnicknameAndsign' => '2%257E%2529%2524zzz',
+        ], 'bbs.jjwxc.net');
+
+        $res = $client->request('GET', $url, [
+            'cookies' => $cookieJar,
+        ]);
         $res = $res->getBody()->getContents();
         return $res ?? '';
     }

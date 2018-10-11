@@ -35,7 +35,7 @@ class ReadPostCommand extends Command
         $crawler = new Crawler($html);
         $posts = $crawler->filter('.read')->each(function (Crawler $node, $i) {
             $replaceStr = '留言☆☆☆';
-            $text = trim($node->text());
+            $text = '№'.$i.' '.trim($node->text());
             $text = str_replace($replaceStr, $replaceStr."\r\n   ", $text);
             return $text;
         });

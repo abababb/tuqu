@@ -33,12 +33,19 @@ class ReadPostCommand extends Command
 
         // dump($html);
         $crawler = new Crawler($html);
-        $posts = $crawler->filter('.read')->each(function (Crawler $node, $i) {
+        $contents = $crawler->filter('.read')->each(function (Crawler $node, $i) {
             $replaceStr = '留言☆☆☆';
-            $text = '№'.$i.' '.trim($node->text());
+            $text = trim($node->text());
             $text = str_replace($replaceStr, $replaceStr."\r\n   ", $text);
-            return $text;
+            return $text."\r\n";
         });
+        $authors = $crawler->filter('.authorname')->each(function (Crawler $node, $i) {
+            return $node->text();
+        });
+        $posts = [];
+        for ($i = 0; $i < count($contents); $i++) {
+            $posts[] = $contents[$i].$authors[$i];
+        }
         $io->listing($posts);
     }
 

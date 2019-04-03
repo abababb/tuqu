@@ -30,7 +30,7 @@ class ColumnGraphAPIController extends AbstractController
             if (!$keywords) {
                 throw new \Exception('无关键词');
             }
-            $startDate = new \DateTime('2018-06-01');
+            $startDate = new \DateTime('-6 month');
             $posts = $qb
                 ->select('p.idate')
                 ->where($orX)

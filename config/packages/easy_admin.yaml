@@ -1,0 +1,21 @@
+easy_admin:
+    site_name: 'zzzzzzz'
+    user:
+        display_name: true
+        display_avatar: false
+
+    formats:
+        number: '%d'
+        datetime: 'Y-m-d H:i:s'
+
+    entities:
+        # List the entity class name you want to manage
+        Post:
+            class: App\Entity\Post
+            label: 'tuqu'
+            list:
+                title: 'title'
+                fields: ['postid', 'subject', 'idate', 'author']
+                actions: ['-edit', '-new', '-delete']
+            search:
+                fields: ['postid', 'subject']

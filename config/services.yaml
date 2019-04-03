@@ -29,3 +29,17 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+
+
+
+
+
+
+
+    # sonata admin config
+    admin.category:
+        class: App\Admin\PostAdmin
+        arguments: [~, App\Entity\Post, ~]
+        tags:
+            - { name: sonata.admin, manager_type: orm, label: Post, group: 兔区 }

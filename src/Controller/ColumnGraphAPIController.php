@@ -19,7 +19,7 @@ class ColumnGraphAPIController extends AbstractController
             $keywords = $request->get('keywords');
             $keywords = json_decode($keywords, true);
 
-            $em = $this->get('doctrine')->getEntityManager();
+            $em = $this->get('doctrine')->getManager();
             $repo = $em->getRepository(Post::class);
             $qb = $repo->createQueryBuilder('p');
             $orX = $qb->expr()->orX();

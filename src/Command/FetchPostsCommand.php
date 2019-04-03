@@ -92,7 +92,7 @@ class FetchPostsCommand extends ContainerAwareCommand
 
     protected function saveToDb($data)
     {
-        $em = $this->getContainer()->get('doctrine')->getEntityManager();
+        $em = $this->getContainer()->get('doctrine')->getManager();
         $repo = $em->getRepository(Post::class);
         $count = 0;
         foreach ($data as $resPost) {

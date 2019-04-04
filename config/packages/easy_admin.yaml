@@ -15,7 +15,7 @@ easy_admin:
             label: 'tuqu'
             list:
                 title: 'title'
-                fields: ['postid', 'subject', 'idate', 'author']
+                fields: [{property: 'postid', template: 'admin/post/postid.html.twig'}, 'subject', 'idate']
                 actions: ['-edit', '-new', '-delete']
             search:
                 fields: ['postid', 'subject']

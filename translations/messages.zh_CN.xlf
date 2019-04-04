@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+  <file source-language="zh-CN" target-language="zh-CN" datatype="plaintext" original="file.ext">
+    <header>
+      <tool tool-id="symfony" tool-name="Symfony"/>
+    </header>
+    <body>
+      <trans-unit id="pVVGIsZ" resname="Post">
+        <source>Post</source>
+        <target>帖子</target>
+      </trans-unit>
+      <trans-unit id="Nd_2RvX" resname="tuqu">
+        <source>tuqu</source>
+        <target>兔区</target>
+      </trans-unit>
+      <trans-unit id="qvIyBkY" resname="title">
+        <source>title</source>
+        <target>标题</target>
+      </trans-unit>
+      <trans-unit id="xIw7QEl" resname="Postid">
+        <source>Postid</source>
+        <target>ID</target>
+      </trans-unit>
+      <trans-unit id="aJcSg4Q" resname="Subject">
+        <source>Subject</source>
+        <target>主题</target>
+      </trans-unit>
+      <trans-unit id="CptVkuA" resname="Idate">
+        <source>Idate</source>
+        <target>发帖时间</target>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>

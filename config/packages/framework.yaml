@@ -14,8 +14,9 @@ framework:
     php_errors:
         log: true
 
+    default_locale: 'zh_CN'
     translator:
-        enabled: false
+        fallbacks: ['zh_CN', 'en']
 
     cache:
         # Put the unique name of your app here: the prefix seed

@@ -13,9 +13,9 @@ easy_admin:
         Post:
             class: App\Entity\Post
             label: 'tuqu'
+            disabled_actions: ['new', 'edit', 'delete']
             list:
                 title: 'title'
                 fields: [{property: 'postid', template: 'admin/post/postid.html.twig'}, 'subject', 'idate']
-                actions: ['-edit', '-new', '-delete']
             search:
                 fields: ['postid', 'subject']

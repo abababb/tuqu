@@ -4,6 +4,7 @@ namespace App\Command;
 
 use App\Entity\Post;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -13,6 +14,15 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 class FetchPostsCommand extends Command
 {
     protected static $defaultName = 'app:fetch:posts';
+
+    private $em;
+
+    public function __construct(EntityManagerInterface $em)
+    {
+        $this->em = $em;
+
+        parent::__construct();
+    }
 
     protected function configure()
     {
@@ -91,8 +101,7 @@ class FetchPostsCommand extends Command
 
     protected function saveToDb($data)
     {
-        $em = $this->getContainer()->get('doctrine')->getManager();
-        $repo = $em->getRepository(Post::class);
+        $repo = $this->em->getRepository(Post::class);
         $count = 0;
         foreach ($data as $resPost) {
             if (!$repo->findOneBy(['postid' => $resPost['id']])) {
@@ -105,10 +114,10 @@ class FetchPostsCommand extends Command
                 $post->setAuthor($resPost['author'] ?? '');
                 $post->setIdate(new \DateTime($resPost['idate']));
                 $post->setNdate(new \DateTime($resPost['ndate']));
-                $em->persist($post);
+                $this->em->persist($post);
             }
         }
-        $em->flush();
+        $this->em->flush();
         $this->io->note('导入'.$count.'条数据');
     }
 }

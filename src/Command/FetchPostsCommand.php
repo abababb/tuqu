@@ -36,6 +36,9 @@ class FetchPostsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $cmd = "(sleep 60  && kill -9 ".getmypid().") > /dev/null &";
+        exec($cmd); //issue a command to force kill this process in 10 seconds
+        
         $this->io = new SymfonyStyle($input, $output);
         $keyword = $input->getArgument('keyword');
         $page = $input->getArgument('page');

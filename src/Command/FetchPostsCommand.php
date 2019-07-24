@@ -23,7 +23,7 @@ class FetchPostsCommand extends Command
     public function __construct(EntityManagerInterface $em)
     {
         $this->em = $em;
-        $this->batchSize = 20;
+        $this->batchSize = 10;
         $this->maxLimit = 1000;
 
         parent::__construct();
@@ -45,6 +45,7 @@ class FetchPostsCommand extends Command
         //exec($cmd); //issue a command to force kill this process in 10 seconds
 
         $this->io = new SymfonyStyle($input, $output);
+        $this->output = $output;
         $keyword = $input->getArgument('keyword');
         $page = (int) $input->getArgument('page');
         $maxLimit = (int) $input->getArgument('max_limit');
@@ -65,9 +66,9 @@ class FetchPostsCommand extends Command
 
         for ($i = 0; $i <= $maxBatchCount; $i++) {
             $startPage = $page + $i * $this->batchSize;
-            $endPage = $startPage + $this->batchSize;
+            $endPage = $startPage + $this->batchSize - 1;
             $resData = $this->batchFetchPage($keyword, $startPage);
-            $this->io->note('开始导入第'.$startPage.'-'.$endPage.'页数据');
+            $this->writeln('开始导入第'.$startPage.'-'.$endPage.'页数据');
             $this->saveToDb($resData);
         }
 
@@ -147,9 +148,22 @@ class FetchPostsCommand extends Command
             $post->setNdate(new \DateTime($resPost['ndate']));
             $this->em->persist($post);
         }
+        unset($data, $post);
         if ($count) {
             $this->em->flush();
         }
-        $this->io->note('导入'.$count.'条数据');
+        $this->writeln('导入'.$count.'条数据');
+    }
+
+    protected function writeln($text)
+    {
+        $prefix = "\n[" . (new \DateTime('now'))->format('Y-m-d H:i:s') . "][" . $this->convert(memory_get_usage(true)) . "]\t";
+        $this->output->writeln($prefix . $text);
+    }
+
+    protected function convert($size)
+    {
+        $unit = array('b', 'kb', 'mb', 'gb', 'tb', 'pb');
+        return @round($size / pow(1024, ($i = floor(log($size, 1024)))), 1) . ' ' . $unit[$i];
     }
 }

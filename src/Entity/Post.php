@@ -6,6 +6,12 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * @ORM\Entity(repositoryClass="App\Repository\PostRepository")
+ * @ORM\Table(
+ *      name="post",
+ *      indexes={
+ *          @ORM\Index(name="idx_idate_subject", columns={"idate", "subject"})
+ *      }
+ * )
  */
 class Post
 {
@@ -22,7 +28,7 @@ class Post
     private $postid;
 
     /**
-     * @ORM\Column(type="text")
+     * @ORM\Column(type="string", length=255)
      */
     private $subject;
 
@@ -37,7 +43,7 @@ class Post
     private $ndate;
 
     /**
-     * @ORM\Column(type="string", length=255)
+     * @ORM\Column(type="string", length=40)
      */
     private $author;
 

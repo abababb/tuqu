@@ -24,7 +24,7 @@ class FetchPostsCommand extends Command
     {
         $this->em = $em;
         $this->batchSize = 10;
-        $this->maxLimit = 1000;
+        $this->maxLimit = 9 * $this->batchSize;
 
         parent::__construct();
     }
@@ -70,6 +70,7 @@ class FetchPostsCommand extends Command
             $resData = $this->batchFetchPage($keyword, $startPage);
             $this->writeln('开始导入第'.$startPage.'-'.$endPage.'页数据');
             $this->saveToDb($resData);
+            unset($resData);
         }
 
         $this->io->success('成功导入');
@@ -118,46 +119,33 @@ class FetchPostsCommand extends Command
             $acc[$cur['id']] = $cur;
             return $acc;
         }, []);
-        $repo = $this->em->getRepository(Post::class);
-        $qb = $repo->createQueryBuilder('p');
-        $dbIdList = $qb
-            ->select('p.postid')
-            ->where(
-                $qb->expr()->in('p.postid', ':idList')
-            )
-            ->setParameters(
-                array(
-                    'idList' => array_keys($data),
-                )
-            )
-            ->getQuery()
-            ->getResult()
-        ;
+        $conn = $this->em->getConnection();
+        $idListStr = implode(',', array_keys($data));
+        $sql = "SELECT postid FROM post WHERE postid IN ($idListStr)";
+        $dbIdList = $conn->query($sql)->fetchAll();
         $dbIdList = array_column($dbIdList, 'postid', 'postid');
         $data = array_diff_key($data, $dbIdList);
-        $count = 0;
-        foreach ($data as $resPost) {
-            $count++;
-            $post = new Post();
-            $post->setSubject($resPost['subject'] ?? '');
-            $post->setPostid($resPost['id'] ?? 0);
-            $post->setExamineStatus($resPost['examine_status'] ?? 0);
-            $post->setReplies($resPost['replies'] ?? 0);
-            $post->setAuthor($resPost['author'] ?? '');
-            $post->setIdate(new \DateTime($resPost['idate']));
-            $post->setNdate(new \DateTime($resPost['ndate']));
-            $this->em->persist($post);
-        }
-        unset($data, $post);
+        $count = count($data);
         if ($count) {
-            $this->em->flush();
+            $data = array_map(function ($resPost) use ($conn) {
+                $resPost['author'] = $resPost['author'] ?? '= =';
+                $resPost['author'] = mb_substr($resPost['author'], 0, 40);
+                $resPost = array_map(function ($s) use ($conn) {
+                    return $conn->quote($s);
+                }, $resPost);
+                return "({$resPost['subject']}, {$resPost['id']}, {$resPost['examine_status']}, {$resPost['replies']}, {$resPost['author']}, {$resPost['idate']}, {$resPost['ndate']})";
+            }, $data);
+            $insertPostsStr = implode(',', $data);
+            $sql = "INSERT INTO post (subject, postid, examine_status, replies, author, idate, ndate) VALUES $insertPostsStr";
+            $conn->query($sql);
         }
+        unset($data, $dbIdList, $sql, $idListStr, $insertPostsStr);
         $this->writeln('导入'.$count.'条数据');
     }
 
     protected function writeln($text)
     {
-        $prefix = "\n[" . (new \DateTime('now'))->format('Y-m-d H:i:s') . "][" . $this->convert(memory_get_usage(true)) . "]\t";
+        $prefix = "\n[" . (new \DateTime('now'))->format('Y-m-d H:i:s') . "][" . $this->convert(memory_get_usage()) . "]\t";
         $this->output->writeln($prefix . $text);
     }
 

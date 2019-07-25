@@ -24,7 +24,7 @@ class FetchPostsCommand extends Command
     {
         $this->em = $em;
         $this->batchSize = 10;
-        $this->maxLimit = 9 * $this->batchSize;
+        $this->maxLimit = 99 * $this->batchSize;
 
         parent::__construct();
     }
@@ -115,6 +115,10 @@ class FetchPostsCommand extends Command
 
     protected function saveToDb($data)
     {
+        if (!$data) {
+            $this->io->note('无数据');
+            return;
+        }
         $data = array_reduce($data, function ($acc, $cur) {
             $acc[$cur['id']] = $cur;
             return $acc;
@@ -129,6 +133,8 @@ class FetchPostsCommand extends Command
         if ($count) {
             $data = array_map(function ($resPost) use ($conn) {
                 $resPost['author'] = $resPost['author'] ?? '= =';
+                $resPost['idate'] = ($resPost['idate'] == '00-00-00 00:00') ? '71-01-01 00:00' : $resPost['idate'];
+                $resPost['ndate'] = ($resPost['ndate'] == '00-00-00 00:00') ? '71-01-01 00:00' : $resPost['idate'];
                 $resPost['author'] = mb_substr($resPost['author'], 0, 40);
                 $resPost = array_map(function ($s) use ($conn) {
                     return $conn->quote($s);

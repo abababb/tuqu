@@ -30,9 +30,9 @@ class ReadPostCommand extends Command
         $page = $input->getArgument('page') ?: 1;
         $postid = $input->getArgument('postid') ?: 0;
         $board = $input->getArgument('board') ?: 2;
-        $html = $this->fetchPage($postid, $page, $board);
+        $html = $this->fetchPost($postid, $page, $board);
 
-        //dump($html);
+        //dump($html);exit;
         $crawler = new Crawler($html);
         $contents = $crawler->filter('.read')->each(function (Crawler $node, $i) {
             $replaceStr = '留言☆☆☆';
@@ -50,7 +50,7 @@ class ReadPostCommand extends Command
         $io->listing($posts);
     }
 
-    protected function fetchPage($postid, $page, $board)
+    protected function fetchPost($postid, $page, $board)
     {
         $client = new \GuzzleHttp\Client();
         $page--;

@@ -2,6 +2,8 @@
 
 namespace App\Entity;
 
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -52,11 +54,6 @@ class Post
     private $author;
 
     /**
-     * @ORM\Column(type="integer")
-     */
-    private $replies;
-
-    /**
      * @ORM\Column(type="smallint")
      */
     private $examine_status;
@@ -65,6 +62,16 @@ class Post
      * @ORM\Column(type="smallint", options={"default"=2})
      */
     private $board = 2;
+
+    /**
+     * @ORM\OneToMany(targetEntity="App\Entity\Reply", mappedBy="post_id", orphanRemoval=true)
+     */
+    private $replies;
+
+    public function __construct()
+    {
+        $this->replies = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -163,6 +170,29 @@ class Post
     public function setBoard(int $board): self
     {
         $this->board = $board;
+
+        return $this;
+    }
+
+    public function addReply(Reply $reply): self
+    {
+        if (!$this->replies->contains($reply)) {
+            $this->replies[] = $reply;
+            $reply->setPostId($this);
+        }
+
+        return $this;
+    }
+
+    public function removeReply(Reply $reply): self
+    {
+        if ($this->replies->contains($reply)) {
+            $this->replies->removeElement($reply);
+            // set the owning side to null (unless already changed)
+            if ($reply->getPostId() === $this) {
+                $reply->setPostId(null);
+            }
+        }
 
         return $this;
     }

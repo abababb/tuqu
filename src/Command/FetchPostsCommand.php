@@ -36,6 +36,7 @@ class FetchPostsCommand extends Command
             ->addArgument('keyword', InputArgument::OPTIONAL, '关键词')
             ->addArgument('page', InputArgument::OPTIONAL, '开始页')
             ->addArgument('max_limit', InputArgument::OPTIONAL, '页数限制')
+            ->addArgument('board', InputArgument::OPTIONAL, '板块：2兔区，3闲情')
         ;
     }
 
@@ -49,6 +50,7 @@ class FetchPostsCommand extends Command
         $keyword = $input->getArgument('keyword');
         $page = (int) $input->getArgument('page');
         $maxLimit = (int) $input->getArgument('max_limit');
+        $board = (int) $input->getArgument('board') ?: 2;
 
         if ($keyword) {
             $this->io->note(sprintf('搜索关键字: %s', $keyword));
@@ -67,16 +69,16 @@ class FetchPostsCommand extends Command
         for ($i = 0; $i <= $maxBatchCount; $i++) {
             $startPage = $page + $i * $this->batchSize;
             $endPage = $startPage + $this->batchSize - 1;
-            $resData = $this->batchFetchPage($keyword, $startPage);
+            $resData = $this->batchFetchPage($keyword, $startPage, $board);
             $this->writeln('开始导入第'.$startPage.'-'.$endPage.'页数据');
-            $this->saveToDb($resData);
+            $this->saveToDb($resData, $board);
             unset($resData);
         }
 
         $this->io->success('成功导入');
     }
 
-    protected function batchFetchPage($keyword, $page)
+    protected function batchFetchPage($keyword, $page, $board)
     {
         $url = 'http://bbs.jjwxc.net/bbsapi.php?action=';
         if ($keyword) {
@@ -85,9 +87,9 @@ class FetchPostsCommand extends Command
             $url .= 'board';
         }
         $client = new Client();
-        $promises = array_map(function ($page) use ($client, $url, $keyword) {
+        $promises = array_map(function ($page) use ($client, $url, $keyword, $board) {
             $postData = array(
-                'board' => '2',
+                'board' => $board,
                 'page' => $page,
                 'sign' => 't1y30KJlifEX7XJeoSv3NvZifLl08tdwcBxJKi130qUIi1mJOpMGV7om4rii/AzhM3h3RhnMFS4%3D',
                 'source' => 'IOS',
@@ -113,7 +115,7 @@ class FetchPostsCommand extends Command
         return $results;
     }
 
-    protected function saveToDb($data)
+    protected function saveToDb($data, $board)
     {
         if (!$data) {
             $this->io->note('无数据');
@@ -131,7 +133,7 @@ class FetchPostsCommand extends Command
         $data = array_diff_key($data, $dbIdList);
         $count = count($data);
         if ($count) {
-            $data = array_map(function ($resPost) use ($conn) {
+            $data = array_map(function ($resPost) use ($conn, $board) {
                 $resPost['author'] = $resPost['author'] ?? '= =';
                 $resPost['idate'] = ($resPost['idate'] == '00-00-00 00:00') ? '71-01-01 00:00' : $resPost['idate'];
                 $resPost['ndate'] = ($resPost['ndate'] == '00-00-00 00:00') ? '71-01-01 00:00' : $resPost['idate'];
@@ -139,10 +141,10 @@ class FetchPostsCommand extends Command
                 $resPost = array_map(function ($s) use ($conn) {
                     return $conn->quote($s);
                 }, $resPost);
-                return "({$resPost['subject']}, {$resPost['id']}, {$resPost['examine_status']}, {$resPost['replies']}, {$resPost['author']}, {$resPost['idate']}, {$resPost['ndate']})";
+                return "({$resPost['subject']}, {$resPost['id']}, {$resPost['examine_status']}, {$resPost['replies']}, {$resPost['author']}, {$resPost['idate']}, {$resPost['ndate']}, {$board})";
             }, $data);
             $insertPostsStr = implode(',', $data);
-            $sql = "INSERT INTO post (subject, postid, examine_status, replies, author, idate, ndate) VALUES $insertPostsStr";
+            $sql = "INSERT INTO post (subject, postid, examine_status, replies, author, idate, ndate, board) VALUES $insertPostsStr";
             $conn->query($sql);
         }
         unset($data, $dbIdList, $sql, $idListStr, $insertPostsStr);

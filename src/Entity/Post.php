@@ -10,6 +10,10 @@ use Doctrine\ORM\Mapping as ORM;
  *      name="post",
  *      indexes={
  *          @ORM\Index(name="idx_idate_subject", columns={"idate", "subject"})
+ *      },
+ *      uniqueConstraints={
+ *        @ORM\UniqueConstraint(name="postid_unique", 
+ *            columns={"postid", "board"})
  *      }
  * )
  */
@@ -23,7 +27,7 @@ class Post
     private $id;
 
     /**
-     * @ORM\Column(type="integer", unique=true)
+     * @ORM\Column(type="integer")
      */
     private $postid;
 
@@ -56,6 +60,11 @@ class Post
      * @ORM\Column(type="smallint")
      */
     private $examine_status;
+
+    /**
+     * @ORM\Column(type="smallint", options={"default"=2})
+     */
+    private $board = 2;
 
     public function getId(): ?int
     {
@@ -142,6 +151,18 @@ class Post
     public function setPostid(int $postid): self
     {
         $this->postid = $postid;
+
+        return $this;
+    }
+
+    public function getBoard(): ?int
+    {
+        return $this->board;
+    }
+
+    public function setBoard(int $board): self
+    {
+        $this->board = $board;
 
         return $this;
     }

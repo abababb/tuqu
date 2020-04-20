@@ -20,6 +20,7 @@ class ReadPostCommand extends Command
             ->setDescription('获取一个帖子数据')
             ->addArgument('postid', InputArgument::OPTIONAL, '帖子ID')
             ->addArgument('page', InputArgument::OPTIONAL, '页数')
+            ->addArgument('board', InputArgument::OPTIONAL, '板块')
         ;
     }
 
@@ -28,9 +29,10 @@ class ReadPostCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $page = $input->getArgument('page') ?: 1;
         $postid = $input->getArgument('postid') ?: 0;
-        $html = $this->fetchPage($postid, $page);
+        $board = $input->getArgument('board') ?: 2;
+        $html = $this->fetchPage($postid, $page, $board);
 
-        // dump($html);
+        //dump($html);
         $crawler = new Crawler($html);
         $contents = $crawler->filter('.read')->each(function (Crawler $node, $i) {
             $replaceStr = '留言☆☆☆';
@@ -48,11 +50,11 @@ class ReadPostCommand extends Command
         $io->listing($posts);
     }
 
-    protected function fetchPage($postid, $page)
+    protected function fetchPage($postid, $page, $board)
     {
         $client = new \GuzzleHttp\Client();
         $page--;
-        $url = 'http://bbs.jjwxc.net/showmsg.php?board=2&page='.$page.'&id='.$postid;
+        $url = 'http://bbs.jjwxc.net/showmsg.php?board='.$board.'&boardpagemsg=1&page='.$page.'&id='.$postid;
         $cookieJar = CookieJar::fromArray([
             'bbstoken' => 'MjA5OTQ3OTFfMF84YWQxZmI1ZGM3ZDk0NTIwZmUxNTMyNjIzNjc2Y2M0ZV8xX18%3D',
             'bbsnicknameAndsign' => '2%257E%2529%2524zzz',

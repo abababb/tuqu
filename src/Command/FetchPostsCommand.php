@@ -3,6 +3,7 @@
 namespace App\Command;
 
 use App\Entity\Post;
+use App\Utils\RedisUtil;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
@@ -10,13 +11,12 @@ use GuzzleHttp\Cookie\CookieJar;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DomCrawler\Crawler;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-class FetchPostsCommand extends Command
+class FetchPostsCommand extends BaseCommand
 {
     protected static $defaultName = 'app:fetch:posts';
 
@@ -25,7 +25,7 @@ class FetchPostsCommand extends Command
     public function __construct(EntityManagerInterface $em)
     {
         $this->em = $em;
-        $this->batchSize = 3;
+        $this->batchSize = 2;
         $this->maxLimit = 99 * $this->batchSize;
 
         parent::__construct();
@@ -74,13 +74,32 @@ class FetchPostsCommand extends Command
             $resData = $this->batchFetchPage($keyword, $startPage, $board);
             $this->writeln('开始导入第'.$startPage.'-'.$endPage.'页数据');
             $resData = $this->saveToDb($resData, $board);
+
             if ($resData) {
-                $this->batchSaveReplies($resData, $board);
+                $this->addToQueue($resData, $board);
+                // $this->batchSaveReplies($resData, $board);
                 unset($resData);
             }
         }
 
         $this->io->success('成功导入');
+    }
+
+    protected function addToQueue($resData, $board)
+    {
+        $redis = stream_socket_client('tcp://127.0.0.1:6379');
+        fwrite($redis, RedisUtil::writeRedisProtocol('SELECT', [1]));
+
+        $key = 'tuqu_post:'.$board;
+        $count = 0;
+        foreach ($resData as $postData) {
+            if (isset($postData['id']) && isset($postData['db_id']) && isset($postData['pages']) && $postData['id'] && $postData['db_id'] && $postData['pages']) {
+                fwrite($redis, RedisUtil::writeRedisProtocol('LPUSH', [$key, $postData['id'].':'.$postData['db_id'].':'.$postData['pages']]));
+                $count++;
+            }
+        }
+        fclose($redis);
+        $this->writeln('成功加入'.$count.'条数据到队列');
     }
 
     protected function batchSaveReplies($resData, $board)
@@ -278,17 +297,5 @@ class FetchPostsCommand extends Command
         unset($data, $dbIdList, $sql, $idListStr, $insertPostsStr);
         $this->writeln('导入'.$count.'条新帖');
         return $postidMap;
-    }
-
-    protected function writeln($text)
-    {
-        $prefix = "\n[" . (new \DateTime('now'))->format('Y-m-d H:i:s') . "][" . $this->convert(memory_get_usage()) . "]\t";
-        $this->output->writeln($prefix . $text);
-    }
-
-    protected function convert($size)
-    {
-        $unit = array('b', 'kb', 'mb', 'gb', 'tb', 'pb');
-        return @round($size / pow(1024, ($i = floor(log($size, 1024)))), 1) . ' ' . $unit[$i];
     }
 }

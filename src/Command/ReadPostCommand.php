@@ -3,14 +3,13 @@
 namespace App\Command;
 
 use Symfony\Component\DomCrawler\Crawler;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use GuzzleHttp\Cookie\CookieJar;
 
-class ReadPostCommand extends Command
+class ReadPostCommand extends BaseCommand
 {
     protected static $defaultName = 'app:read:post';
 

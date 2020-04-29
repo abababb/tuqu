@@ -8,7 +8,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-class MysqlRelatedExportCommand extends Command
+class MysqlRelatedExportCommand extends BaseCommand
 {
     protected static $defaultName = 'app:mysql:related';
 
@@ -38,17 +38,5 @@ class MysqlRelatedExportCommand extends Command
         $result =$conn->fetchAll('SELECT * FROM reservation order by id desc LIMIT 10');
         dump($result);
         $this->io->success('成功导入');
-    }
-
-    protected function writeln($text)
-    {
-        $prefix = "\n[" . (new \DateTime('now'))->format('Y-m-d H:i:s') . "][" . $this->convert(memory_get_usage()) . "]\t";
-        $this->output->writeln($prefix . $text);
-    }
-
-    protected function convert($size)
-    {
-        $unit = array('b', 'kb', 'mb', 'gb', 'tb', 'pb');
-        return @round($size / pow(1024, ($i = floor(log($size, 1024)))), 1) . ' ' . $unit[$i];
     }
 }

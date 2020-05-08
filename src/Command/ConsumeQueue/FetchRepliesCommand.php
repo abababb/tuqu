@@ -168,9 +168,11 @@ class FetchRepliesCommand extends BaseCommand
                     $reply['images'] = implode('|', $matches['image']);
                 }
             }
-
+            unset($matches);
             return $reply;
         }, $matches['content']);
+
+        unset($matches);
         return $content;
     }
 

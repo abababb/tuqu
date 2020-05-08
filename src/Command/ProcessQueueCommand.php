@@ -78,9 +78,9 @@ class ProcessQueueCommand extends BaseCommand
 
 
             $countBefore = count($resData);
-            $this->writeln('去重前: '.$countBefore."\n");
+            //$this->writeln('去重前: '.$countBefore."\n");
             $resData = array_unique($resData);
-            $countAfter = count($resData);
+            //$countAfter = count($resData);
             $this->writeln('去重后: '.$countAfter."\n");
 
             $count = 0;
@@ -88,11 +88,11 @@ class ProcessQueueCommand extends BaseCommand
                 fwrite($redis, RedisUtil::writeRedisProtocol('LPUSH', [$key, $line]));
                 $count++;
             }
-            $this->writeln('成功加入'.$count.'条数据到队列');
+            //$this->writeln('成功加入'.$count.'条数据到队列');
 
             fclose($redis);
 
-            $this->io->success('成功去重'.($countBefore - $countAfter).'条');
+            $this->writeln('成功去重'.($countBefore - $countAfter).'条');
 
             sleep(30);
         }

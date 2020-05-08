@@ -20,13 +20,13 @@ command=/usr/bin/php /home/zzz/tuqu/bin/console --env=prod app:consume:fetch:rep
 [program:xq_fetch_replies_0]
 command=/usr/bin/php /home/zzz/tuqu/bin/console --env=prod app:consume:fetch:replies 10 3
 
-注: 按现在的服务器配置每个板块worker数8个
+注: 按现在的服务器配置每个板块worker数4个
 
 [program:tuqu_process_queue]
-command=/usr/bin/php /home/zzz/tuqu/bin/console --env=prod app:process:queue 500 2
+command=/usr/bin/php /home/zzz/tuqu/bin/console --env=prod app:process:queue 100 2
 
 [program:xq_process_queue]
-command=/usr/bin/php /home/zzz/tuqu/bin/console --env=prod app:process:queue 500 3
+command=/usr/bin/php /home/zzz/tuqu/bin/console --env=prod app:process:queue 100 3
 
 ## 其余零散功能
 

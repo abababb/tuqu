@@ -94,7 +94,7 @@ class ProcessQueueCommand extends BaseCommand
 
             $this->io->success('成功去重'.($countBefore - $countAfter).'条');
 
-            sleep(10);
+            sleep(30);
         }
     }
 }

@@ -110,6 +110,7 @@ class FetchRepliesCommand extends BaseCommand
 
     protected function batchSaveReplies($resData, $board)
     {
+        //$this->writeln('开始拉取'.count($resData).'个页面');
         $cookieJar = CookieJar::fromArray([
             'bbstoken' => 'MjA5OTQ3OTFfMF84YWQxZmI1ZGM3ZDk0NTIwZmUxNTMyNjIzNjc2Y2M0ZV8xX18%3D',
             'bbsnicknameAndsign' => '2%257E%2529%2524zzz',
@@ -130,49 +131,70 @@ class FetchRepliesCommand extends BaseCommand
                 return $acc;
             }
             $html = (string) $res[1]->getBody();
-            $crawler = new Crawler();
-            $crawler->addHTMLContent($html, 'gbk');
+            $htmlInfo = $this->parseHtml($html, ($res[0]['db_id'] ?? ''));
 
-            $contents = $crawler->filter('.read')->each(function (Crawler $node, $i) {
-                $text = trim($node->text());
-                return $text;
-            });
-            if (!$contents) {
-                return $acc;
-            }
-
-            // todo 针对有引用的楼层, contents分层找父级
-            
-            $authors = $crawler->filter('.authorname')->each(function (Crawler $node, $i) {
-                $text = trim($node->text());
-                return $text;
-            });
-            if (!$authors) {
-                return $acc;
-            }
-            $authors[0] = explode("\n", $authors[0])[0] ?? $authors[0];
-            $authornamePattern = '/№(?P<reply_no>\d+) ☆☆☆(?P<full_author>.*)于(?P<reply_time>.*)留言☆☆☆　/';
-            for ($i = 0; $i < count($contents); $i++) {
-                $matches = [];
-                preg_match($authornamePattern, $authors[$i], $matches);
-                $authorInfo = explode('|', $matches['full_author']);
-                if (!isset($matches['reply_no']) || $matches['reply_no'] === null) {
-                    continue;
-                }
-                $acc[] = [
-                    'post_id' => $res[0]['db_id'] ?? '',
-                    'raw_content' => $contents[$i],
-                    'raw_authorname' => $authors[$i],
-                    'reply_no' => $matches['reply_no'],
-                    'author' => $authorInfo[0] ?? '',
-                    'author_code' => $authorInfo[1] ?? '',
-                    'reply_time' => $matches['reply_time'],
-                ];
-            }
+            unset($html);
+            $acc = array_merge($htmlInfo, $acc);
             return $acc;
         }, []);
+        unset($results);
+
         $this->writeln('获取'.count($htmlList).'条回复');
         $this->saveRepliesToDb($htmlList);
+    }
+
+    protected function getElementByClass($class, $html)
+    {
+        $pattern = '#<td class="'.$class.'"\s*>\s*(?P<content>.*?)\s*</td>#s';
+        $matches = [];
+        preg_match_all($pattern, $html, $matches);
+
+        $trimPattern = '#<[^>]+>#';
+        $content = preg_replace($trimPattern, '', $matches['content']);
+        return $content;
+    }
+
+    protected function parseHtml($html, $dbId)
+    {
+        $htmlInfo = [];
+        if (!$dbId) {
+            return $htmlInfo;
+        }
+        $html = mb_convert_encoding($html, 'utf-8', 'gbk');
+
+        $contents = $this->getElementByClass('read', $html);
+        $authors = $this->getElementByClass('authorname', $html);
+
+        if (!$contents || !$authors) {
+            return $htmlInfo;
+        }
+
+        // todo 针对有引用的楼层, contents分层找父级
+        
+        $authors[0] = explode("\n", $authors[0])[0] ?? $authors[0];
+        $authornamePattern = '/№(?P<reply_no>\d+) ☆☆☆(?P<full_author>.*)于(?P<reply_time>.*)留言☆☆☆　/';
+        for ($i = 0; $i < count($contents); $i++) {
+            $matches = [];
+            preg_match($authornamePattern, $authors[$i], $matches);
+            $authorInfo = explode('|', $matches['full_author']);
+            if (!isset($matches['reply_no']) || $matches['reply_no'] === null) {
+                continue;
+            }
+            $htmlInfo[] = [
+                'post_id' => $dbId,
+                'raw_content' => $contents[$i],
+                'raw_authorname' => $authors[$i],
+                'reply_no' => $matches['reply_no'],
+                'author' => $authorInfo[0] ?? '',
+                'author_code' => $authorInfo[1] ?? '',
+                'reply_time' => $matches['reply_time'],
+            ];
+        }
+        unset($html);
+        unset($contents);
+        unset($authors);
+        unset($authorInfo);
+        return $htmlInfo;
     }
 
     protected function saveRepliesToDb($htmlList)
@@ -183,6 +205,7 @@ class FetchRepliesCommand extends BaseCommand
             $acc[$cur['post_id']][] = $cur;
             return $acc;
         }, []);
+        unset($htmlList);
 
         $idListStr = implode(',', array_keys($postReplies));
         $sql = "SELECT post_id, MAX(reply_no) AS max_reply FROM reply WHERE post_id IN ($idListStr) GROUP BY post_id";
@@ -202,6 +225,7 @@ class FetchRepliesCommand extends BaseCommand
             $acc = array_merge($cur, $acc);
             return $acc;
         }, []);
+        unset($postReplies);
 
         $count = count($insertReplies);
 
@@ -216,6 +240,8 @@ class FetchRepliesCommand extends BaseCommand
             $sql = "INSERT INTO reply (raw_content, raw_authorname, post_id, reply_no, author, author_code, reply_time) VALUES $insertPostsStr";
             $conn->query($sql);
             $this->writeln('插入'.$count.'条新回复');
+            unset($insertReplies);
+            unset($insertPostsStr);
         }
     }
 

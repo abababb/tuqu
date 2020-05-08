@@ -143,14 +143,34 @@ class FetchRepliesCommand extends BaseCommand
         $this->saveRepliesToDb($htmlList);
     }
 
-    protected function getElementByClass($class, $html)
+    protected function getElementByClass($class, $html, $getImg = false)
     {
         $pattern = '#<td class="'.$class.'"\s*>\s*(?P<content>.*?)\s*</td>#s';
         $matches = [];
         preg_match_all($pattern, $html, $matches);
 
-        $trimPattern = '#<[^>]+>#';
-        $content = preg_replace($trimPattern, '', $matches['content']);
+        if (!isset($matches['content'])) {
+            return;
+        }
+        $content = array_map(function ($line) use ($getImg) {
+            $reply = [
+                'content' => '',
+                'images' => '',
+            ];
+            $trimPattern = '#<[^>]+>#';
+            $reply['content'] = preg_replace($trimPattern, '', $line);
+
+            if ($getImg) {
+                $matches = [];
+                $pattern = '#<img src="(?P<image>.*?)".*/>#s';
+                preg_match_all($pattern, $line, $matches);
+                if (isset($matches['image'])) {
+                    $reply['images'] = implode('|', $matches['image']);
+                }
+            }
+
+            return $reply;
+        }, $matches['content']);
         return $content;
     }
 
@@ -162,14 +182,14 @@ class FetchRepliesCommand extends BaseCommand
         }
         $html = mb_convert_encoding($html, 'utf-8', 'gbk');
 
-        $contents = $this->getElementByClass('read', $html);
+        $contents = $this->getElementByClass('read', $html, true);
         $authors = $this->getElementByClass('authorname', $html);
 
         if (!$contents || !$authors) {
             return $htmlInfo;
         }
 
-        // todo 针对有引用的楼层, contents分层找父级
+        $authors = array_column($authors, 'content');
         
         $authors[0] = explode("\n", $authors[0])[0] ?? $authors[0];
         $authornamePattern = '/№(?P<reply_no>\d+) ☆☆☆(?P<full_author>.*)于(?P<reply_time>.*)留言☆☆☆　/';
@@ -182,12 +202,13 @@ class FetchRepliesCommand extends BaseCommand
             }
             $htmlInfo[] = [
                 'post_id' => $dbId,
-                'raw_content' => $contents[$i],
+                'raw_content' => $contents[$i]['content'],
                 'raw_authorname' => $authors[$i],
                 'reply_no' => $matches['reply_no'],
                 'author' => $authorInfo[0] ?? '',
                 'author_code' => $authorInfo[1] ?? '',
                 'reply_time' => $matches['reply_time'],
+                'images' => $contents[$i]['images'],
             ];
         }
         unset($html);
@@ -234,10 +255,10 @@ class FetchRepliesCommand extends BaseCommand
                 $reply = array_map(function ($s) use ($conn) {
                     return $conn->quote($s);
                 }, $reply);
-                return "({$reply['raw_content']}, {$reply['raw_authorname']}, {$reply['post_id']}, {$reply['reply_no']}, {$reply['author']}, {$reply['author_code']}, {$reply['reply_time']})";
+                return "({$reply['raw_content']}, {$reply['raw_authorname']}, {$reply['post_id']}, {$reply['reply_no']}, {$reply['author']}, {$reply['author_code']}, {$reply['reply_time']}, {$reply['images']})";
             }, $insertReplies);
             $insertPostsStr = implode(',', $insertData);
-            $sql = "INSERT INTO reply (raw_content, raw_authorname, post_id, reply_no, author, author_code, reply_time) VALUES $insertPostsStr";
+            $sql = "INSERT INTO reply (raw_content, raw_authorname, post_id, reply_no, author, author_code, reply_time, images) VALUES $insertPostsStr";
             $conn->query($sql);
             $this->writeln('插入'.$count.'条新回复');
             unset($insertReplies);

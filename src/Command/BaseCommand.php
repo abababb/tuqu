@@ -6,7 +6,7 @@ use Symfony\Component\Console\Command\Command;
 
 class BaseCommand extends Command
 {
-    protected static $defaultName = '';
+    protected static $defaultName = 'app:base';
 
     protected function writeln($text)
     {

@@ -33,7 +33,7 @@ class Reply
     /**
      * @ORM\Column(type="text", nullable=true)
      */
-    private $content;
+    private $images;
 
     /**
      * @ORM\Column(type="string", length=255, nullable=true)
@@ -65,11 +65,6 @@ class Reply
      * @ORM\Column(type="datetime", nullable=true)
      */
     private $reply_time;
-
-    /**
-     * @ORM\Column(type="integer", nullable=true)
-     */
-    private $parent_id;
 
     public function getId(): ?int
     {
@@ -148,30 +143,6 @@ class Reply
         return $this;
     }
 
-    public function getParentId(): ?int
-    {
-        return $this->parent_id;
-    }
-
-    public function setParentId(?int $parent_id): self
-    {
-        $this->parent_id = $parent_id;
-
-        return $this;
-    }
-
-    public function getContent(): ?string
-    {
-        return $this->content;
-    }
-
-    public function setContent(?string $content): self
-    {
-        $this->content = $content;
-
-        return $this;
-    }
-
     public function getPost(): ?Post
     {
         return $this->post;
@@ -180,6 +151,18 @@ class Reply
     public function setPost(?Post $post): self
     {
         $this->post = $post;
+
+        return $this;
+    }
+
+    public function getImages(): ?string
+    {
+        return $this->images;
+    }
+
+    public function setImages(?string $images): self
+    {
+        $this->images = $images;
 
         return $this;
     }

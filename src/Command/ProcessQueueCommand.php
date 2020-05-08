@@ -80,8 +80,8 @@ class ProcessQueueCommand extends BaseCommand
             $countBefore = count($resData);
             //$this->writeln('去重前: '.$countBefore."\n");
             $resData = array_unique($resData);
-            //$countAfter = count($resData);
-            $this->writeln('去重后: '.$countAfter."\n");
+            $countAfter = count($resData);
+            //$this->writeln('去重后: '.$countAfter."\n");
 
             $count = 0;
             foreach ($resData as $line) {

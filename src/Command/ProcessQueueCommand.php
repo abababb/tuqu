@@ -54,7 +54,7 @@ class ProcessQueueCommand extends BaseCommand
             $redis = stream_socket_client('tcp://127.0.0.1:6379');
             fwrite($redis, RedisUtil::writeRedisProtocol('SELECT', [1]));
 
-            // 队列不大时不去重，第一次调用brpop会另外返回+OK
+            // 队列不大时不去重，第一次调用会另外返回+OK
             fwrite($redis, RedisUtil::writeRedisProtocol('LLEN', [$key]));
             $line = fgets($redis);
             $line = fgets($redis);

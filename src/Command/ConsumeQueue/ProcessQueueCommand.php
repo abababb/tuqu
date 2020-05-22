@@ -6,12 +6,7 @@ use App\Entity\Post;
 use App\Utils\RedisUtil;
 use App\Command\BaseCommand;
 
-use GuzzleHttp\Client;
-use GuzzleHttp\Promise;
-use GuzzleHttp\Cookie\CookieJar;
-
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;

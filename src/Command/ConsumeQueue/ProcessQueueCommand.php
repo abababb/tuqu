@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Command;
+namespace App\Command\ConsumeQueue;
 
 use App\Entity\Post;
 use App\Utils\RedisUtil;
+use App\Command\BaseCommand;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;

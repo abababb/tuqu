@@ -23,10 +23,10 @@ command=/usr/bin/php /home/zzz/tuqu/bin/console --env=prod app:consume:fetch:rep
 注: 按现在的服务器配置每个板块, 拉回复worker数4个, 去重1个
 
 [program:tuqu_process_queue]
-command=/usr/bin/php /home/zzz/tuqu/bin/console --env=prod app:process:queue 150 2
+command=/usr/bin/php /home/zzz/tuqu/bin/ProcessQueue.php 100 2
 
 [program:xq_process_queue]
-command=/usr/bin/php /home/zzz/tuqu/bin/console --env=prod app:process:queue 150 3
+command=/usr/bin/php /home/zzz/tuqu/bin/ProcessQueue.php 100 3
 
 ## 其余零散功能
 

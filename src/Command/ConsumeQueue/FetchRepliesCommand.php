@@ -267,5 +267,4 @@ class FetchRepliesCommand extends BaseCommand
             unset($insertPostsStr);
         }
     }
-
 }

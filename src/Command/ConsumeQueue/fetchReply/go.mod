@@ -2,4 +2,7 @@ module fetchReply
 
 go 1.15
 
-require golang.org/x/net v0.0.0-20200904194848-62affa334b73
+require (
+	github.com/go-sql-driver/mysql v1.5.0
+	golang.org/x/net v0.0.0-20200904194848-62affa334b73
+)

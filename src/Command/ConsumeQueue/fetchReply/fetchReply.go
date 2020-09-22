@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/go-redis/redis"
 	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/net/html/charset"
 	"io/ioutil"
@@ -60,7 +61,7 @@ func getContent(read []byte, reTag *regexp.Regexp) string {
 	return contentStr
 }
 
-func getPost(post Post) []Reply {
+func fetchPost(post Post) []Reply {
 	url := getUrl(post)
 	req, err := http.NewRequest("GET", url, nil)
 	//fmt.Printf("%s\n", url)
@@ -107,25 +108,24 @@ func getPost(post Post) []Reply {
 	return replies
 }
 
-//todo 读redis
-func getPosts() []Post {
-	postStrs := []string{
-		"8694080:444278:1",
-		"8687409:434542:5",
-		"8693971:444114:1",
-		"8694066:444261:1",
-		"8694052:444235:1",
-		"8694047:444232:1",
-		"8693986:444132:1",
-		"8693995:444144:1",
-		"8694041:444215:1",
-		"8691467:440497:1",
+func getPosts(board int, batchSize int, rdb *redis.Client) []Post {
+	postStrs := make([]string, 0)
+	for i := 0; i < batchSize; i++ {
+		// 读redis
+		v, _ := rdb.BRPop(0, "tuqu_post:"+strconv.Itoa(board)).Result()
+		postStrs = append(postStrs, v[1])
 	}
+	//fmt.Printf("%s\n", postStrs)
+
+	//fmt.Printf("%d\n", len(postStrs))
+	postStrs = removeDuplicates(postStrs)
+	//fmt.Printf("%d\n", len(postStrs))
+
 	posts := make([]Post, 0)
 	for _, postStr := range postStrs {
 		postStrSlice := strings.Split(postStr, ":")
 		post := Post{
-			board: 2,
+			board: board,
 		}
 		post.id, _ = strconv.Atoi(postStrSlice[0])
 		post.dbId, _ = strconv.Atoi(postStrSlice[1])
@@ -134,8 +134,20 @@ func getPosts() []Post {
 
 		posts = append(posts, post)
 	}
-	//fmt.Printf("%s\n", posts)
+	// fmt.Printf("%s\n", posts)
 	return posts
+}
+
+func removeDuplicates(data []string) []string {
+	strMap := make(map[string]int)
+	for _, i := range data {
+		strMap[i] = 0
+	}
+	result := make([]string, 0)
+	for k := range strMap {
+		result = append(result, k)
+	}
+	return result
 }
 
 type PostResult struct {
@@ -144,7 +156,7 @@ type PostResult struct {
 }
 
 func goGetPosts(post Post, c chan PostResult) {
-	replies := getPost(post)
+	replies := fetchPost(post)
 	pa := PostResult{
 		dbId:    post.dbId,
 		replies: replies,
@@ -204,14 +216,14 @@ func insertDb(postResults []PostResult) {
 	//fmt.Printf("%s\n", postResultsToInsert)
 
 	if len(postResultsToInsert) > 0 {
-		insertSql := genInsertSql(postResultsToInsert)
+		insertSql, count := genInsertSql(postResultsToInsert)
 		//fmt.Printf("%s\n", insertSql)
 
 		insert, err := db.Query(insertSql)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("插入%d条新回复", len(postResultsToInsert))
+		fmt.Printf("插入%d条新回复\n", count)
 		defer insert.Close()
 	}
 }
@@ -222,7 +234,7 @@ func escapeInsertSqlPart(re *regexp.Regexp, part string) string {
 	return part
 }
 
-func genInsertSql(postResults []PostResult) string {
+func genInsertSql(postResults []PostResult) (string, int) {
 	insertParts := make([]string, 0)
 	re := regexp.MustCompile(`'`)
 	for _, postResult := range postResults {
@@ -233,7 +245,7 @@ func genInsertSql(postResults []PostResult) string {
 	}
 	insertPartStr := strings.Join(insertParts, ",")
 	sql := "INSERT INTO reply (raw_content, raw_authorname, post_id, reply_no, author, author_code, reply_time, images) VALUES " + insertPartStr
-	return sql
+	return sql, len(insertParts)
 }
 
 func filterPostReplies(resultMap map[int]int, postResults []PostResult) []PostResult {
@@ -268,8 +280,17 @@ func filterPostReplies(resultMap map[int]int, postResults []PostResult) []PostRe
 }
 
 func main() {
-	posts := getPosts()
-	r := batchGetPosts(posts)
-	//fmt.Printf("%s\n", r)
-	insertDb(r)
+	board := 2
+	batchSize := 30
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       1,  // use default DB
+	})
+	for {
+		posts := getPosts(board, batchSize, rdb)
+		r := batchGetPosts(posts)
+		insertDb(r)
+		time.Sleep(2 * time.Second)
+	}
 }

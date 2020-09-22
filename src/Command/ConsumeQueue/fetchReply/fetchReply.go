@@ -1,9 +1,10 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/net/html/charset"
 	"io/ioutil"
@@ -108,11 +109,11 @@ func fetchPost(post Post) []Reply {
 	return replies
 }
 
-func getPosts(board int, batchSize int, rdb *redis.Client) []Post {
+func getPosts(board int, batchSize int, rdb *redis.Client, ctx context.Context) []Post {
 	postStrs := make([]string, 0)
 	for i := 0; i < batchSize; i++ {
 		// 读redis
-		v, _ := rdb.BRPop(0, "tuqu_post:"+strconv.Itoa(board)).Result()
+		v, _ := rdb.BRPop(ctx, 0, "tuqu_post:"+strconv.Itoa(board)).Result()
 		postStrs = append(postStrs, v[1])
 	}
 	//fmt.Printf("%s\n", postStrs)
@@ -282,13 +283,14 @@ func filterPostReplies(resultMap map[int]int, postResults []PostResult) []PostRe
 func main() {
 	board := 2
 	batchSize := 30
+	ctx := context.Background()
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "", // no password set
 		DB:       1,  // use default DB
 	})
 	for {
-		posts := getPosts(board, batchSize, rdb)
+		posts := getPosts(board, batchSize, rdb, ctx)
 		r := batchGetPosts(posts)
 		insertDb(r)
 		time.Sleep(2 * time.Second)

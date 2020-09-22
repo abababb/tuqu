@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -41,8 +42,11 @@ func getUrl(post Post) string {
 func getAuthor(author []byte, reTag *regexp.Regexp, reAuthorname *regexp.Regexp) (string, string, string, string, string) {
 	authorStr := string(reTag.ReplaceAll(author, []byte("")))
 	authorStrArr := reAuthorname.FindStringSubmatch(authorStr)
-	//fmt.Printf("%s\n", authorStrArr)
-	return authorStrArr[1], authorStrArr[2], authorStrArr[3], authorStrArr[4], authorStrArr[0]
+	if len(authorStrArr) == 5 {
+		return authorStrArr[1], authorStrArr[2], authorStrArr[3], authorStrArr[4], authorStrArr[0]
+	}
+	fmt.Printf("找不到author: %s\n", authorStr)
+	return "", "", "", "", ""
 }
 
 func getImg(read []byte, reImg *regexp.Regexp) string {
@@ -94,17 +98,19 @@ func fetchPost(post Post) []Reply {
 	replies := make([]Reply, 0)
 	for k, read := range reads {
 		replyNo, authorName, authorCode, replyTime, fullAuthorName := getAuthor(authors[k], reTag, reAuthorname)
-		replyInstance := Reply{
-			content:        getContent(read, reTag),
-			images:         getImg(read, reImg),
-			replyNo:        replyNo,
-			authorName:     authorName,
-			fullAuthorName: fullAuthorName,
-			authorCode:     authorCode,
-			replyTime:      replyTime,
+		if replyNo != "" {
+			replyInstance := Reply{
+				content:        getContent(read, reTag),
+				images:         getImg(read, reImg),
+				replyNo:        replyNo,
+				authorName:     authorName,
+				fullAuthorName: fullAuthorName,
+				authorCode:     authorCode,
+				replyTime:      replyTime,
+			}
+			//fmt.Printf("%s\n", replyInstance)
+			replies = append(replies, replyInstance)
 		}
-		//fmt.Printf("%s\n", replyInstance)
-		replies = append(replies, replyInstance)
 	}
 	return replies
 }
@@ -135,7 +141,6 @@ func getPosts(board int, batchSize int, rdb *redis.Client, ctx context.Context) 
 
 		posts = append(posts, post)
 	}
-	// fmt.Printf("%s\n", posts)
 	return posts
 }
 
@@ -156,7 +161,7 @@ type PostResult struct {
 	replies []Reply
 }
 
-func goGetPosts(post Post, c chan PostResult) {
+func goFetchPosts(post Post, c chan PostResult) {
 	replies := fetchPost(post)
 	pa := PostResult{
 		dbId:    post.dbId,
@@ -165,18 +170,18 @@ func goGetPosts(post Post, c chan PostResult) {
 	c <- pa
 }
 
-func batchGetPosts(posts []Post) []PostResult {
+func batchFetchPosts(posts []Post) []PostResult {
 	// 并发请求
 	c := make(chan PostResult, len(posts))
 	r := make([]PostResult, len(posts))
 	for k, post := range posts {
-		go goGetPosts(post, c)
+		go goFetchPosts(post, c)
 		r[k] = <-c
 	}
 	return r
 }
 
-func insertDb(postResults []PostResult) {
+func insertDb(board int, postResults []PostResult) {
 	// 写数据库
 	db, err := sql.Open("mysql", "root:FqcD123223!@tcp(127.0.0.1:3306)/tuqu")
 
@@ -224,7 +229,7 @@ func insertDb(postResults []PostResult) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("插入%d条新回复\n", count)
+		fmt.Printf("板块%d插入%d条新回复\n", board, count)
 		defer insert.Close()
 	}
 }
@@ -280,19 +285,27 @@ func filterPostReplies(resultMap map[int]int, postResults []PostResult) []PostRe
 	return postResultsToInsert
 }
 
+func fetchBoard(board int, rdb *redis.Client, ctx context.Context) {
+	batchSize := 10
+	for {
+		posts := getPosts(board, batchSize, rdb, ctx)
+		fmt.Printf("板块%d开始处理%d条post\n", board, len(posts))
+		r := batchFetchPosts(posts)
+		insertDb(board, r)
+		time.Sleep(2 * time.Second)
+	}
+}
+
 func main() {
-	board := 2
-	batchSize := 30
 	ctx := context.Background()
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "", // no password set
 		DB:       1,  // use default DB
 	})
-	for {
-		posts := getPosts(board, batchSize, rdb, ctx)
-		r := batchGetPosts(posts)
-		insertDb(r)
-		time.Sleep(2 * time.Second)
-	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go fetchBoard(2, rdb, ctx)
+	go fetchBoard(3, rdb, ctx)
+	wg.Wait()
 }

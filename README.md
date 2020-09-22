@@ -14,13 +14,9 @@
 
 ### supervisor.conf配置
 
-[program:tuqu_fetch_replies_0]
-command=/usr/bin/php /home/zzz/tuqu/bin/console --env=prod app:consume:fetch:replies
-
-[program:xq_fetch_replies_0]
-command=/usr/bin/php /home/zzz/tuqu/bin/console --env=prod app:consume:fetch:replies 10 3
-
-注: 按现在的服务器配置每个板块, 拉回复worker数4个, 去重1个
+[program:fetch_replies]
+command=/home/zzz/tuqu/src/Command/ConsumeQueue/fetchReply/fetchReply
+注: 改用go脚本，省内存
 
 [program:tuqu_process_queue]
 command=/usr/bin/php /home/zzz/tuqu/bin/ProcessQueue.php 100 2

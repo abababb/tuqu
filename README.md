@@ -18,12 +18,6 @@
 command=/home/zzz/tuqu/src/Command/ConsumeQueue/fetchReply/fetchReply
 注: 改用go脚本，省内存
 
-[program:tuqu_process_queue]
-command=/usr/bin/php /home/zzz/tuqu/bin/ProcessQueue.php 100 2
-
-[program:xq_process_queue]
-command=/usr/bin/php /home/zzz/tuqu/bin/ProcessQueue.php 100 3
-
 ## 其余零散功能
 
 ### 查看兔区标题关键词帖子数目统计

@@ -34,6 +34,11 @@ type Post struct {
 	page  int
 }
 
+type PostResult struct {
+	dbId    int
+	replies []Reply
+}
+
 func getUrl(post Post) string {
 	url := fmt.Sprintf("https://bbs.jjwxc.net/showmsg.php?board=%d&page=%d&id=%d", post.board, post.page, post.id)
 	return url
@@ -154,11 +159,6 @@ func removeDuplicates(data []string) []string {
 		result = append(result, k)
 	}
 	return result
-}
-
-type PostResult struct {
-	dbId    int
-	replies []Reply
 }
 
 func goFetchPosts(post Post, c chan PostResult) {
@@ -296,6 +296,36 @@ func fetchBoard(board int, rdb *redis.Client, ctx context.Context) {
 	}
 }
 
+func parseQueue(board int, rdb *redis.Client, ctx context.Context) {
+	key := "tuqu_post:" + strconv.Itoa(board)
+	batchSize := 500
+
+	for {
+		keyLen, _ := rdb.LLen(ctx, key).Result()
+		//fmt.Printf("%d\n", keyLen)
+		if int64(float64(batchSize)*1.1) < keyLen {
+			postStrs := make([]string, 0)
+			for i := 0; i < batchSize; i++ {
+				// 读redis
+				v, _ := rdb.BRPop(ctx, 0, key).Result()
+				postStrs = append(postStrs, v[1])
+			}
+
+			before := len(postStrs)
+			//fmt.Printf("%d\n", before)
+			postStrs = removeDuplicates(postStrs)
+			after := len(postStrs)
+			//fmt.Printf("%d\n", after)
+
+			for _, postStr := range postStrs {
+				_, _ = rdb.LPush(ctx, key, postStr).Result()
+			}
+			fmt.Printf("board%d去重%d条\n", board, before-after)
+		}
+		time.Sleep(30 * time.Second)
+	}
+}
+
 func main() {
 	ctx := context.Background()
 	rdb := redis.NewClient(&redis.Options{
@@ -307,5 +337,7 @@ func main() {
 	wg.Add(1)
 	go fetchBoard(2, rdb, ctx)
 	go fetchBoard(3, rdb, ctx)
+	go parseQueue(2, rdb, ctx)
+	go parseQueue(3, rdb, ctx)
 	wg.Wait()
 }

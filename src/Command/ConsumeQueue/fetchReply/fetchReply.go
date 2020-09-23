@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	_ "github.com/go-sql-driver/mysql"
@@ -10,6 +11,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -39,9 +41,15 @@ type PostResult struct {
 	replies []Reply
 }
 
-func getUrl(post Post) string {
-	url := fmt.Sprintf("https://bbs.jjwxc.net/showmsg.php?board=%d&page=%d&id=%d", post.board, post.page, post.id)
-	return url
+type BoardPost struct {
+	subject       string
+	postId        string
+	examineStatus string
+	author        string
+	idate         string
+	ndate         string
+	pages         string
+	board         int
 }
 
 func getAuthor(author []byte, reTag *regexp.Regexp, reAuthorname *regexp.Regexp) (string, string, string, string, string) {
@@ -72,9 +80,9 @@ func getContent(read []byte, reTag *regexp.Regexp) string {
 }
 
 func fetchPost(post Post) []Reply {
-	url := getUrl(post)
-	req, err := http.NewRequest("GET", url, nil)
-	//fmt.Printf("%s\n", url)
+	uri := fmt.Sprintf("https://bbs.jjwxc.net/showmsg.php?board=%d&page=%d&id=%d", post.board, post.page, post.id)
+	req, err := http.NewRequest("GET", uri, nil)
+	//fmt.Printf("%s\n", uri)
 
 	client := &http.Client{}
 	req.Header.Set("Cookie", "bbsnicknameAndsign=2%257E%2529%2524zzz; bbstoken=MjA5OTQ3OTFfMF9kMzUzMDkwNDMwNjdjYWExZTVlZjJjZTM1YTRiMTk5Ml8xX19fMQ%3D%3D")
@@ -181,9 +189,10 @@ func batchFetchPosts(posts []Post) []PostResult {
 	return r
 }
 
-func insertDb(board int, postResults []PostResult) {
-	// 写数据库
-	db, err := sql.Open("mysql", "root:FqcD123223!@tcp(127.0.0.1:3306)/tuqu")
+func getTuquDb() *sql.DB {
+	mysqlConfig := "root:FqcD123223!@tcp(127.0.0.1:3306)/tuqu"
+
+	db, err := sql.Open("mysql", mysqlConfig)
 
 	if err != nil {
 		log.Fatal(err)
@@ -192,7 +201,12 @@ func insertDb(board int, postResults []PostResult) {
 	db.SetConnMaxLifetime(time.Minute * 3)
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
+	return db
+}
 
+func insertDb(board int, postResults []PostResult) {
+	// 写数据库
+	db := getTuquDb()
 	defer db.Close()
 
 	postIds := make([]string, 0)
@@ -225,12 +239,11 @@ func insertDb(board int, postResults []PostResult) {
 		insertSql, count := genInsertSql(postResultsToInsert)
 		//fmt.Printf("%s\n", insertSql)
 
-		insert, err := db.Query(insertSql)
+		_, err := db.Exec(insertSql)
 		if err != nil {
 			log.Fatal(err)
 		}
 		fmt.Printf("板块%d插入%d条新回复\n", board, count)
-		defer insert.Close()
 	}
 }
 
@@ -245,7 +258,7 @@ func genInsertSql(postResults []PostResult) (string, int) {
 	re := regexp.MustCompile(`'`)
 	for _, postResult := range postResults {
 		for _, reply := range postResult.replies {
-			insertPart := fmt.Sprintf("('%s','%s',%s,%s,'%s','%s','%s','%s')", escapeInsertSqlPart(re, reply.content), escapeInsertSqlPart(re, reply.fullAuthorName), strconv.Itoa(postResult.dbId), reply.replyNo, reply.authorName, reply.authorCode, reply.replyTime, reply.images)
+			insertPart := fmt.Sprintf("('%s','%s',%d,%s,'%s','%s','%s','%s')", escapeInsertSqlPart(re, reply.content), escapeInsertSqlPart(re, reply.fullAuthorName), postResult.dbId, reply.replyNo, reply.authorName, reply.authorCode, reply.replyTime, reply.images)
 			insertParts = append(insertParts, insertPart)
 		}
 	}
@@ -285,44 +298,187 @@ func filterPostReplies(resultMap map[int]int, postResults []PostResult) []PostRe
 	return postResultsToInsert
 }
 
+func fetchReply(board int, rdb *redis.Client, ctx context.Context, batchSize int) {
+	posts := getPosts(board, batchSize, rdb, ctx)
+	r := batchFetchPosts(posts)
+	insertDb(board, r)
+}
+
+func parseQueue(board int, rdb *redis.Client, ctx context.Context, key string, batchSize int) {
+	keyLen, _ := rdb.LLen(ctx, key).Result()
+	//fmt.Printf("%d\n", keyLen)
+	if int64(float64(batchSize)*1.1) < keyLen {
+		postStrs := make([]string, 0)
+		for i := 0; i < batchSize; i++ {
+			// 读redis
+			v, _ := rdb.BRPop(ctx, 0, key).Result()
+			postStrs = append(postStrs, v[1])
+		}
+
+		before := len(postStrs)
+		//fmt.Printf("%d\n", before)
+		postStrs = removeDuplicates(postStrs)
+		after := len(postStrs)
+		//fmt.Printf("%d\n", after)
+
+		for _, postStr := range postStrs {
+			_, _ = rdb.LPush(ctx, key, postStr).Result()
+		}
+		fmt.Printf("board%d去重%d条\n", board, before-after)
+	}
+}
+
 func fetchBoard(board int, rdb *redis.Client, ctx context.Context) {
+	// 拉取数据
+	resp, err := http.PostForm("http://bbs.jjwxc.net/bbsapi.php?action=board", url.Values{
+		"board":       {strconv.Itoa(board)},
+		"page":        {"1"},
+		"sign":        {"t1y30KJlifEX7XJeoSv3NvZifLl08tdwcBxJKi130qUIi1mJOpMGV7om4rii/AzhM3h3RhnMFS4%3D"},
+		"source":      {"IOS"},
+		"versionCode": {"195"},
+		"topic":       {"3"},
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	//fmt.Printf("%s\n", body)
+
+	var v map[string]interface{}
+	err = json.Unmarshal(body, &v)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	data, ok := v["data"]
+	if !ok {
+		return
+	}
+
+	dataType := fmt.Sprintf("%T", data)
+	if dataType != "[]interface {}" {
+		return
+	}
+
+	bp := make([]BoardPost, 0)
+	insertPids := make([]string, 0)
+	for _, post := range data.([]interface{}) {
+		p := post.(map[string]interface{})
+		boardPost := BoardPost{
+			subject:       p["subject"].(string),
+			postId:        p["id"].(string),
+			examineStatus: p["examine_status"].(string),
+			board:         board,
+			author:        p["author"].(string),
+			idate:         p["idate"].(string),
+			ndate:         p["ndate"].(string),
+			pages:         p["pages"].(string),
+		}
+		if boardPost.idate == "00-00-00 00:00" {
+			boardPost.idate = "71-01-01 00:00"
+		}
+		if boardPost.ndate == "00-00-00 00:00" {
+			boardPost.ndate = "71-01-01 00:00"
+		}
+		//fmt.Printf("%s\n", boardPost)
+
+		bp = append(bp, boardPost)
+		insertPids = append(insertPids, boardPost.postId)
+	}
+
+	//插入mysql和redis
+	db := getTuquDb()
+	defer db.Close()
+
+	selectSql := "SELECT id, postid FROM post WHERE postid IN (" + strings.Join(insertPids, ",") + ")"
+	//fmt.Printf("%s\n", selectSql)
+	results, err := db.Query(selectSql)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	resultMap := make(map[int]int)
+	for results.Next() {
+		var dbId int
+		var postId int
+		results.Scan(&dbId, &postId)
+		resultMap[postId] = dbId
+	}
+	//fmt.Printf("%s\n", resultMap)
+
+	toAddQueue := make([]string, 0)
+	toInsert := make([]BoardPost, 0)
+	for _, boardPost := range bp {
+		pid, _ := strconv.Atoi(boardPost.postId)
+		if dbId, ok := resultMap[pid]; !ok {
+			toInsert = append(toInsert, boardPost)
+		} else {
+			toAdd := boardPost.postId + ":" + strconv.Itoa(dbId) + ":" + boardPost.pages
+			toAddQueue = append(toAddQueue, toAdd)
+		}
+	}
+
+	if len(toInsert) > 0 {
+		re := regexp.MustCompile(`'`)
+		insertParts := make([]string, 0)
+		for _, boardPost := range toInsert {
+			insertPart := fmt.Sprintf("('%s','%s',%s,'%s','%s','%s',%d)", escapeInsertSqlPart(re, boardPost.subject), boardPost.postId, boardPost.examineStatus, escapeInsertSqlPart(re, boardPost.author), boardPost.idate, boardPost.ndate, board)
+			insertParts = append(insertParts, insertPart)
+		}
+		insertSql := "INSERT INTO post (subject, postid, examine_status, author, idate, ndate, board) VALUES " + strings.Join(insertParts, ",")
+		//fmt.Printf("%s\n", insertSql)
+		insertResult, err := db.Exec(insertSql)
+		if err != nil {
+			log.Fatal(err)
+		}
+		lastInsertId, err := insertResult.LastInsertId()
+		//fmt.Printf("%s\n", lastInsertId)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for k, boardPost := range toInsert {
+			toAdd := boardPost.postId + ":" + strconv.FormatInt(lastInsertId+int64(k), 10) + ":" + boardPost.pages
+			toAddQueue = append(toAddQueue, toAdd)
+		}
+	}
+
+	//fmt.Printf("%s\n", toAddQueue)
+	if len(toAddQueue) > 0 {
+		rkey := "tuqu_post:" + strconv.Itoa(board)
+		for _, postStr := range toAddQueue {
+			_, _ = rdb.LPush(ctx, rkey, postStr).Result()
+		}
+	}
+	fmt.Printf("board%d已插入数据库%d条，已加入redis队列%d条\n", board, len(toInsert), len(toAddQueue))
+}
+
+func foreverFetchReply(board int, rdb *redis.Client, ctx context.Context) {
 	batchSize := 10
 	for {
-		posts := getPosts(board, batchSize, rdb, ctx)
-		fmt.Printf("板块%d开始处理%d条post\n", board, len(posts))
-		r := batchFetchPosts(posts)
-		insertDb(board, r)
+		fetchReply(board, rdb, ctx, batchSize)
 		time.Sleep(2 * time.Second)
 	}
 }
 
-func parseQueue(board int, rdb *redis.Client, ctx context.Context) {
+func foreverParseQueue(board int, rdb *redis.Client, ctx context.Context) {
 	key := "tuqu_post:" + strconv.Itoa(board)
-	batchSize := 500
-
+	batchSize := 300
 	for {
-		keyLen, _ := rdb.LLen(ctx, key).Result()
-		//fmt.Printf("%d\n", keyLen)
-		if int64(float64(batchSize)*1.1) < keyLen {
-			postStrs := make([]string, 0)
-			for i := 0; i < batchSize; i++ {
-				// 读redis
-				v, _ := rdb.BRPop(ctx, 0, key).Result()
-				postStrs = append(postStrs, v[1])
-			}
-
-			before := len(postStrs)
-			//fmt.Printf("%d\n", before)
-			postStrs = removeDuplicates(postStrs)
-			after := len(postStrs)
-			//fmt.Printf("%d\n", after)
-
-			for _, postStr := range postStrs {
-				_, _ = rdb.LPush(ctx, key, postStr).Result()
-			}
-			fmt.Printf("board%d去重%d条\n", board, before-after)
-		}
+		parseQueue(board, rdb, ctx, key, batchSize)
 		time.Sleep(30 * time.Second)
+	}
+}
+
+func foreverFetchBoard(board int, rdb *redis.Client, ctx context.Context) {
+	for {
+		fetchBoard(board, rdb, ctx)
+		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -333,11 +489,14 @@ func main() {
 		Password: "", // no password set
 		DB:       1,  // use default DB
 	})
+
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go fetchBoard(2, rdb, ctx)
-	go fetchBoard(3, rdb, ctx)
-	go parseQueue(2, rdb, ctx)
-	go parseQueue(3, rdb, ctx)
+	go foreverFetchReply(2, rdb, ctx)
+	go foreverParseQueue(2, rdb, ctx)
+	go foreverFetchBoard(2, rdb, ctx)
+	go foreverFetchReply(3, rdb, ctx)
+	go foreverParseQueue(3, rdb, ctx)
+	go foreverFetchBoard(3, rdb, ctx)
 	wg.Wait()
 }

@@ -262,6 +262,7 @@ func genInsertSql(postResults []PostResult) (string, int) {
 			insertParts = append(insertParts, insertPart)
 		}
 	}
+	insertParts = removeDuplicates(insertParts)
 	insertPartStr := strings.Join(insertParts, ",")
 	sql := "INSERT INTO reply (raw_content, raw_authorname, post_id, reply_no, author, author_code, reply_time, images) VALUES " + insertPartStr
 	return sql, len(insertParts)

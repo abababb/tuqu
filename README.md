@@ -1,22 +1,13 @@
 # tuqu
 
-
 ## 抓数据功能
-
-### crontab配置
-* * * * * /usr/bin/php /home/zzz/tuqu/bin/console app:fetch:posts '' 0 2 >> /tmp/tuqu.log
-* * * * * sleep 20; /usr/bin/php /home/zzz/tuqu/bin/console app:fetch:posts '' 0 2 >> /tmp/tuqu.log
-* * * * * sleep 40; /usr/bin/php /home/zzz/tuqu/bin/console app:fetch:posts '' 0 2 >> /tmp/tuqu.log
-
-* * * * * sleep 10; /usr/bin/php /home/zzz/tuqu/bin/console app:fetch:posts '' 0 2 3 >> /tmp/xq.log
-* * * * * sleep 30; /usr/bin/php /home/zzz/tuqu/bin/console app:fetch:posts '' 0 2 3 >> /tmp/xq.log
-* * * * * sleep 50; /usr/bin/php /home/zzz/tuqu/bin/console app:fetch:posts '' 0 2 3 >> /tmp/xq.log
 
 ### supervisor.conf配置
 
 [program:fetch_replies]
 command=/home/zzz/tuqu/src/Command/ConsumeQueue/fetchReply/fetchReply
 注: 改用go脚本，省内存
+建表sql为src/Command/ConsumeQueue/fetchReply/create_db.sql
 
 ## 其余零散功能
 

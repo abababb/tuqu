@@ -103,7 +103,7 @@ func fetchPost(post Post) []Reply {
 	reAuthor := regexp.MustCompile(`(?s)<td class="authorname"\s*>.*?</td>`)
 	reTag := regexp.MustCompile(`\s*<[^>]+>\s*`)
 	reImg := regexp.MustCompile(`<img src="(?P<image>.*?)".*?>`)
-	reAuthorname := regexp.MustCompile(`№(?P<reply_no>[[:digit:]]+)☆☆☆(?P<author_name>.*)\|(?P<author_code>[[:alnum:]]+)于(?P<reply_time>.*)留言☆☆☆`)
+	reAuthorname := regexp.MustCompile(`№(?P<reply_no>[[:digit:]]+)☆☆☆(?P<author_name>.*?)\|?(?P<author_code>[[:alnum:]]{8})?于(?P<reply_time>.*)留言☆☆☆`)
 
 	reads := reRead.FindAll(body, -1)
 	authors := reAuthor.FindAll(body, -1)

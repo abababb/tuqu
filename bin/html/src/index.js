@@ -39,15 +39,21 @@ function loadPage(page) {
                 data.map(i => {
                   const reply = document.createElement('div');
                   reply.className = "reply"
-                  reply.innerHTML = "<div class='row-reply'>no."+i.reply_no+"</div>"
-                    + "<div class='row-reply'>"+i.content+"</div>"
-                    + "<div class='row-reply'><span class='authorname'>"+i.author_name+"</span> | <span>"+i.author_code+"</span> | <span class='replytime'>"+i.reply_time+"</span></div>"
+                  let html = "<div class='row-reply'>"+i.content+"</div>";
+                  if (i.images) {
+                    let imgs = i.images.split('|')
+                    for (var j = 0; j < imgs.length; j++) {
+                      html += "<img src='"+imgs[j]+"'><br>"
+                    };
+                  }
+                  html += "<div class='row-reply'><span class='no'>"+i.reply_no+"</span> | <span class='authorname'>"+i.author_name+"</span> | <span>"+i.author_code+"</span> | <span class='replytime'>"+i.reply_time+"</span></div>"
+                  reply.innerHTML = html;
                   post.appendChild(reply)
                 })
               })
             post.dataset.expand = 1
           } else {
-            removeByClass('row-reply')
+            removeByClass('reply')
             post.dataset.expand = 0
           }
         })

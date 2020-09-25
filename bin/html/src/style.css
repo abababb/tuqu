@@ -6,8 +6,9 @@
 }
 
 .reply {
+    background: gainsboro;
     margin-left: 20px;
-    border-bottom: 1px solid lightblue;
+    border-bottom: 1px solid blueviolet;
 }
 
 .row-reply {

@@ -1,13 +1,13 @@
 package main
 
 import (
+	//"fmt"
+	//"time"
 	"database/sql"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"strconv"
-	"time"
 )
 
 func getTuquDb() *sql.DB {
@@ -19,7 +19,8 @@ func getTuquDb() *sql.DB {
 		log.Fatal(err)
 	}
 
-	db.SetConnMaxLifetime(time.Minute * 3)
+	//db.SetConnMaxLifetime(time.Minute * 3)
+	db.SetConnMaxLifetime(60 * 3)
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
 	return db
@@ -107,7 +108,7 @@ func returnMsg(list interface{}) Msg {
 
 func main() {
 
-	_ = fmt.Printf
+	//_ = fmt.Printf
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()

@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
@@ -110,9 +109,8 @@ func main() {
 
 	_ = fmt.Printf
 
-	//gin.SetMode(gin.ReleaseMode)
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
-	r.Use(cors.Default())
 	r.GET("/posts/:page", func(c *gin.Context) {
 		page, _ := strconv.Atoi(c.Param("page"))
 

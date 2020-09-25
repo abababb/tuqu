@@ -13,9 +13,13 @@
 
 .row-reply {
 }
+
 button {
     width: 100%;
     text-align: center;
+}
+img {
+    width: 90%;
 }
 
 .author {

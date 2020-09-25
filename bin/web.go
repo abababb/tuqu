@@ -7,11 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
+	"net/http"
 	"strconv"
 )
 
 func getTuquDb() *sql.DB {
-	mysqlConfig := "root:FqcD123223!@tcp(127.0.0.1:3306)/tuqu"
+	mysqlConfig := "zzz:111111@tcp(127.0.0.1:3306)/tuqu"
 
 	db, err := sql.Open("mysql", mysqlConfig)
 
@@ -126,11 +127,11 @@ func main() {
 		c.JSON(200, returnMsg(list))
 	})
 
-	r.Static("/assets", "./html/dist")
-	r.LoadHTMLFiles("html/dist/index.html")
+	r.StaticFS("/assets", http.Dir("/home/zzz/web/html/dist"))
+	r.LoadHTMLFiles("/home/zzz/web/html/dist/index.html")
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(200, "index.html", gin.H{})
 	})
-	//r.Run()
+
 	r.Run(":80")
 }

@@ -5,8 +5,12 @@
 .row {
 }
 
-.row-reply {
+.reply {
     margin-left: 20px;
+    border-bottom: 1px solid lightblue;
+}
+
+.row-reply {
 }
 button {
     width: 100%;

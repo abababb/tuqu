@@ -6,9 +6,9 @@ function init () {
   ele.innerHTML = "第"+page+"页"
   ele.dataset.page = page
   ele.addEventListener('click', (e) => {
-    page++
     e.target.innerHTML = "第"+page+"页"
     loadPage(page)
+    page++
   })
   document.body.appendChild(ele);
 }

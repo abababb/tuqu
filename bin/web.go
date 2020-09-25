@@ -3,9 +3,11 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
+	"strconv"
 	"time"
 )
 
@@ -48,11 +50,14 @@ type Msg struct {
 	Data    interface{} `json:"data"`
 }
 
-func getPosts() []BoardPost {
+func getPosts(page int) []BoardPost {
 	db := getTuquDb()
 	defer db.Close()
 
-	selectSql := "SELECT id, postid, idate, subject, author, board FROM post WHERE idate > '2019-07-01 00:00:00' AND (subject LIKE '%zyl%' OR subject LIKE '%朱一%' OR subject LIKE '%一鸣%' OR subject LIKE '%pnz%' OR subject LIKE '%亲爱的自己%' OR subject LIKE '%qad%' OR subject LIKE '%盗墓%' OR subject LIKE '%拢龙%' OR subject LIKE '%南派%' OR subject LIKE '%南麟%' OR subject LIKE '%徐磊%' OR subject LIKE '%镇魂%' OR subject REGEXP 'cq([^l]{1}|$)' OR subject LIKE '%胖丁%' OR subject LIKE '%xlb%' OR subject LIKE '%包酱%' OR subject LIKE '%([^w]{1})wx%' OR subject LIKE '%真朋友%' OR subject LIKE '%cym%' OR subject LIKE '%井然%' OR subject LIKE '%吴邪%' OR subject LIKE '%重启%' OR subject LIKE '%zql%' OR subject LIKE '%叛逆者%' OR subject LIKE '%pnz%' OR subject LIKE '%dffy%' OR subject LIKE '%东方飞云%' OR subject LIKE '%瓶邪%') ORDER BY idate DESC LIMIT 30"
+	pageSize := 30
+	offset := page * pageSize
+
+	selectSql := "SELECT id, postid, idate, subject, author, board FROM post WHERE idate > '2019-07-01 00:00:00' AND (subject LIKE '%zyl%' OR subject LIKE '%朱一%' OR subject LIKE '%一鸣%' OR subject LIKE '%pnz%' OR subject LIKE '%亲爱的自己%' OR subject LIKE '%qad%' OR subject LIKE '%盗墓%' OR subject LIKE '%拢龙%' OR subject LIKE '%南派%' OR subject LIKE '%南麟%' OR subject LIKE '%徐磊%' OR subject LIKE '%镇魂%' OR subject REGEXP 'cq([^l]{1}|$)' OR subject LIKE '%胖丁%' OR subject LIKE '%xlb%' OR subject LIKE '%包酱%' OR subject LIKE '%([^w]{1})wx%' OR subject LIKE '%真朋友%' OR subject LIKE '%cym%' OR subject LIKE '%井然%' OR subject LIKE '%吴邪%' OR subject LIKE '%重启%' OR subject LIKE '%zql%' OR subject LIKE '%叛逆者%' OR subject LIKE '%pnz%' OR subject LIKE '%dffy%' OR subject LIKE '%东方飞云%' OR subject LIKE '%瓶邪%') ORDER BY idate DESC LIMIT " + strconv.Itoa(pageSize) + " OFFSET " + strconv.Itoa(offset)
 
 	//fmt.Printf("%s\n", selectSql)
 	results, err := db.Query(selectSql)
@@ -71,11 +76,11 @@ func getPosts() []BoardPost {
 	return bpList
 }
 
-func getReplies(pid string) []Reply {
+func getReplies(pid int) []Reply {
 	db := getTuquDb()
 	defer db.Close()
 
-	selectSql := "SELECT raw_content, images, author, reply_no, author_code, reply_time FROM reply WHERE post_id = " + pid + " ORDER BY reply_no"
+	selectSql := "SELECT raw_content, images, author, reply_no, author_code, reply_time FROM reply WHERE post_id = " + strconv.Itoa(pid) + " ORDER BY reply_no"
 
 	results, err := db.Query(selectSql)
 
@@ -93,30 +98,40 @@ func getReplies(pid string) []Reply {
 	return list
 }
 
+func returnMsg(list interface{}) Msg {
+	msg := Msg{}
+	msg.Code = 0
+	msg.Message = "success"
+	msg.Data = list
+	return msg
+}
+
 func main() {
 
 	_ = fmt.Printf
 
+	//gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
-	r.GET("/posts", func(c *gin.Context) {
-		bpList := getPosts()
-		//fmt.Printf("%s\n", bpList)
-		msg := Msg{}
-		msg.Code = 0
-		msg.Message = "success"
-		msg.Data = bpList
-		c.JSON(200, msg)
+	r.Use(cors.Default())
+	r.GET("/posts/:page", func(c *gin.Context) {
+		page, _ := strconv.Atoi(c.Param("page"))
+
+		list := getPosts(page)
+		c.JSON(200, returnMsg(list))
 	})
 
 	r.GET("/post/:id", func(c *gin.Context) {
-		id := c.Param("id")
+		id, _ := strconv.Atoi(c.Param("id"))
+
 		list := getReplies(id)
-		//fmt.Printf("%s\n", bpList)
-		msg := Msg{}
-		msg.Code = 0
-		msg.Message = "success"
-		msg.Data = list
-		c.JSON(200, msg)
+		c.JSON(200, returnMsg(list))
 	})
-	r.Run()
+
+	r.Static("/assets", "./html/dist")
+	r.LoadHTMLFiles("html/dist/index.html")
+	r.GET("/", func(c *gin.Context) {
+		c.HTML(200, "index.html", gin.H{})
+	})
+	//r.Run()
+	r.Run(":80")
 }

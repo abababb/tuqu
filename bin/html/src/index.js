@@ -1,10 +1,23 @@
 import './style.css';
 
-function component() {
+let page = 0
+function init () {
+  const ele = document.createElement('button');
+  ele.innerHTML = "第"+page+"页"
+  ele.dataset.page = page
+  ele.addEventListener('click', (e) => {
+    page++
+    e.target.innerHTML = "第"+page+"页"
+    loadPage(page)
+  })
+  document.body.appendChild(ele);
+}
+function loadPage(page) {
   const host = location.origin
-  fetch(host+'/posts/0')
+  fetch(host+'/posts/'+page)
     .then(response => response.json())
     .then(result => {
+      removeByClass('post')
       const data = result.data
       const body = data.map(i => {
         const ele = document.createElement('div');
@@ -33,10 +46,7 @@ function component() {
               })
             post.dataset.expand = 1
           } else {
-            const replies = document.getElementsByClassName('row-reply')
-            while (replies.length > 0) {
-              replies[0].remove()
-            }
+            removeByClass('row-reply')
             post.dataset.expand = 0
           }
         })
@@ -46,5 +56,11 @@ function component() {
 
 }
 
-component()
+function removeByClass (cName) {
+  const replies = document.getElementsByClassName(cName)
+  while (replies.length > 0) {
+    replies[0].remove()
+  }
+}
 
+init()

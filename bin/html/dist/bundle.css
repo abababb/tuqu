@@ -8,6 +8,10 @@
 .row-reply {
     margin-left: 20px;
 }
+button {
+    width: 100%;
+    text-align: center;
+}
 
 .author {
 }

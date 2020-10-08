@@ -190,7 +190,7 @@ func batchFetchPosts(posts []Post) []PostResult {
 }
 
 func getTuquDb() *sql.DB {
-	mysqlConfig := "root:FqcD123223!@tcp(127.0.0.1:3306)/tuqu"
+	mysqlConfig := "zzz:111111@tcp(127.0.0.1:3306)/tuqu"
 
 	db, err := sql.Open("mysql", mysqlConfig)
 
@@ -255,7 +255,7 @@ func escapeInsertSqlPart(re *regexp.Regexp, part string) string {
 
 func genInsertSql(postResults []PostResult) (string, int) {
 	insertParts := make([]string, 0)
-	re := regexp.MustCompile(`'`)
+	re := regexp.MustCompile(`[^\\]'`)
 	for _, postResult := range postResults {
 		for _, reply := range postResult.replies {
 			insertPart := fmt.Sprintf("('%s','%s',%d,%s,'%s','%s','%s','%s')", escapeInsertSqlPart(re, reply.content), escapeInsertSqlPart(re, reply.fullAuthorName), postResult.dbId, reply.replyNo, reply.authorName, reply.authorCode, reply.replyTime, reply.images)
@@ -426,7 +426,7 @@ func fetchBoard(board int, rdb *redis.Client, ctx context.Context) {
 	}
 
 	if len(toInsert) > 0 {
-		re := regexp.MustCompile(`'`)
+        re := regexp.MustCompile(`[^\\]'`)
 		insertParts := make([]string, 0)
 		for _, boardPost := range toInsert {
 			insertPart := fmt.Sprintf("('%s','%s',%s,'%s','%s','%s',%d)", escapeInsertSqlPart(re, boardPost.subject), boardPost.postId, boardPost.examineStatus, escapeInsertSqlPart(re, boardPost.author), boardPost.idate, boardPost.ndate, board)
